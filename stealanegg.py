@@ -1,118 +1,100 @@
-import streamlit as st
+import pygame
+import sys
 import random
-import time
 
-st.set_page_config(page_title="Steal An Egg", page_icon="🥚", layout="centered")
+# Khởi tạo
+pygame.init()
+WIDTH, HEIGHT = 1000, 700
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Steal An Egg - Mini")
+clock = pygame.time.Clock()
 
-# ====================== KHỞI TẠO ======================
-if "speed" not in st.session_state:
-    st.session_state.speed = 5000
-    st.session_state.money = 0
-    st.session_state.pets = []
-    st.session_state.message = "Chào mừng đến Steal An Egg!"
-    st.session_state.egg = None
-    st.session_state.carrying = False
-    st.session_state.location = "Base"
+# Màu sắc
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GREEN = (50, 200, 50)
+YELLOW = (255, 220, 50)
+RED = (220, 50, 50)
+BLUE = (50, 120, 255)
+BROWN = (160, 100, 40)
 
-# ====================== DỮ LIỆU ======================
-biomes = {
-    "Forest": {"speed_need": 0, "eggs": ["Chicken Egg", "Dog Egg"], "reward": (1, 5)},
-    "Lake": {"speed_need": 900, "eggs": ["Frog Egg", "Duck Egg"], "reward": (5, 15)},
-    "Desert": {"speed_need": 10000, "eggs": ["Jerboa Egg", "Scorpion Egg"], "reward": (20, 50)},
-    "Prehistoric": {"speed_need": 18000000, "eggs": ["T-Rex Egg"], "reward": (80000, 120000)},
-}
+# Nhân vật
+player_size = 40
+player_x = WIDTH // 2
+player_y = HEIGHT // 2
+player_speed = 5
 
-# ====================== GIAO DIỆN ======================
-st.title("🥚 Steal An Egg")
-st.caption("Phiên bản mini bằng Streamlit")
+# Trứng
+eggs = []
+for _ in range(8):
+    eggs.append({
+        "x": random.randint(50, WIDTH - 50),
+        "y": random.randint(50, HEIGHT - 50),
+        "collected": False
+    })
 
-col1, col2, col3 = st.columns(3)
-col1.metric("⚡ Speed", f"{st.session_state.speed:,}")
-col2.metric("💰 Money", f"${st.session_state.money:,}")
-col3.metric("🐣 Số Pet", len(st.session_state.pets))
+# Điểm
+score = 0
+font = pygame.font.SysFont("arial", 30)
 
-st.markdown(f"**Vị trí hiện tại:** `{st.session_state.location}`")
-st.info(st.session_state.message)
+# Vòng lặp game
+running = True
+while running:
+    clock.tick(60)
+    
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
 
-st.divider()
+    # Điều khiển nhân vật
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_w] or keys[pygame.K_UP]:
+        player_y -= player_speed
+    if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+        player_y += player_speed
+    if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+        player_x -= player_speed
+    if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+        player_x += player_speed
 
-# ====================== CHỨC NĂNG ======================
-tab1, tab2, tab3 = st.tabs(["🏃 Hành động", "🗺️ Biomes", "🐣 Pets của bạn"])
+    # Giới hạn trong màn hình
+    player_x = max(0, min(WIDTH - player_size, player_x))
+    player_y = max(0, min(HEIGHT - player_size, player_y))
 
-with tab1:
-    st.subheader("Hành động")
+    # Kiểm tra nhặt trứng
+    player_rect = pygame.Rect(player_x, player_y, player_size, player_size)
+    for egg in eggs:
+        if not egg["collected"]:
+            egg_rect = pygame.Rect(egg["x"], egg["y"], 25, 30)
+            if player_rect.colliderect(egg_rect):
+                egg["collected"] = True
+                score += 1
 
-    # Tập luyện
-    if st.button("🏋️ Tập Treadmill (+Speed)", use_container_width=True):
-        gain = random.randint(200, 800)
-        st.session_state.speed += gain
-        st.session_state.message = f"Bạn tập treadmill và được +{gain} Speed!"
-        st.rerun()
+    # Vẽ
+    screen.fill((180, 230, 255))  # nền trời
 
-    # Quay về base
-    if st.session_state.location != "Base":
-        if st.button("🏠 Chạy về Base", use_container_width=True):
-            if st.session_state.carrying:
-                # Thành công mang trứng về
-                egg_name = st.session_state.egg
-                income = random.randint(*biomes[st.session_state.location]["reward"])
-                st.session_state.pets.append({"name": egg_name, "income": income})
-                st.session_state.money += income * 10
-                st.session_state.message = f"Bạn đã mang {egg_name} về thành công! +${income*10}"
-                st.session_state.egg = None
-                st.session_state.carrying = False
-            else:
-                st.session_state.message = "Bạn đã về Base an toàn."
-            st.session_state.location = "Base"
-            st.rerun()
+    # Vẽ đất
+    pygame.draw.rect(screen, GREEN, (0, HEIGHT - 80, WIDTH, 80))
 
-with tab2:
-    st.subheader("Chọn Biome để cướp trứng")
+    # Vẽ trứng
+    for egg in eggs:
+        if not egg["collected"]:
+            pygame.draw.ellipse(screen, BROWN, (egg["x"], egg["y"], 25, 30))
+            pygame.draw.ellipse(screen, YELLOW, (egg["x"] + 5, egg["y"] + 5, 15, 18))
 
-    for name, info in biomes.items():
-        can_go = st.session_state.speed >= info["speed_need"]
-        label = f"{name} (Cần {info['speed_need']:,} Speed)"
-        
-        if can_go:
-            if st.button(f"➡️ Đi đến {name}", key=name, use_container_width=True):
-                st.session_state.location = name
-                st.session_state.message = f"Bạn đã đến {name}. Hãy cướp trứng!"
-                st.rerun()
-        else:
-            st.button(f"🔒 {label}", disabled=True, use_container_width=True)
+    # Vẽ nhân vật
+    pygame.draw.rect(screen, BLUE, (player_x, player_y, player_size, player_size))
+    # đầu
+    pygame.draw.circle(screen, (255, 200, 150), (player_x + 20, player_y - 10), 15)
 
-    # Cướp trứng
-    if st.session_state.location in biomes and not st.session_state.carrying:
-        st.divider()
-        if st.button("🥚 Cướp Trứng!", type="primary", use_container_width=True):
-            egg = random.choice(biomes[st.session_state.location]["eggs"])
-            st.session_state.egg = egg
-            st.session_state.carrying = True
-            st.session_state.message = f"Bạn đã nhặt được **{egg}**! Nhanh chạy về Base trước khi bị đuổi!"
-            st.rerun()
+    # Điểm số
+    score_text = font.render(f"Trứng đã cướp: {score}", True, BLACK)
+    screen.blit(score_text, (20, 20))
 
-    if st.session_state.carrying:
-        st.warning(f"⚠️ Bạn đang cầm: **{st.session_state.egg}** — Hãy chạy về Base ngay!")
+    instruction = font.render("Dùng WASD hoặc phím mũi tên để di chuyển", True, BLACK)
+    screen.blit(instruction, (20, 60))
 
-with tab3:
-    st.subheader("Pets đang sở hữu")
-    if not st.session_state.pets:
-        st.write("Bạn chưa có pet nào.")
-    else:
-        total_income = 0
-        for pet in st.session_state.pets:
-            st.write(f"• {pet['name']} → **${pet['income']}/s**")
-            total_income += pet["income"]
-        st.success(f"Tổng thu nhập: **${total_income}/s**")
+    pygame.display.flip()
 
-        if st.button("💵 Thu hoạch tiền từ Pets"):
-            earn = total_income * random.randint(5, 15)
-            st.session_state.money += earn
-            st.session_state.message = f"Bạn thu hoạch được ${earn:,}!"
-            st.rerun()
-
-st.divider()
-if st.button("🔄 Chơi lại từ đầu", type="secondary"):
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-    st.rerun()
+pygame.quit()
+sys.exit()
