@@ -1,107 +1,118 @@
 import streamlit as st
-import pandas as pd
+import random
+import time
 
-st.set_page_config(
-    page_title="Steal An Egg Helper",
-    page_icon="🥚",
-    layout="wide"
-)
+st.set_page_config(page_title="Steal An Egg", page_icon="🥚", layout="centered")
 
-st.title("🥚 Steal An Egg Helper Tool")
-st.caption("Công cụ hỗ trợ người chơi Steal An Egg trên Roblox")
+# ====================== KHỞI TẠO ======================
+if "speed" not in st.session_state:
+    st.session_state.speed = 5000
+    st.session_state.money = 0
+    st.session_state.pets = []
+    st.session_state.message = "Chào mừng đến Steal An Egg!"
+    st.session_state.egg = None
+    st.session_state.carrying = False
+    st.session_state.location = "Base"
 
-# ====================== DATA ======================
+# ====================== DỮ LIỆU ======================
 biomes = {
-    "Forest": {"speed": 0, "guardian": "Chicken"},
-    "Lake": {"speed": 900, "guardian": "Swan"},
-    "Desert": {"speed": 10000, "guardian": "Scorpion"},
-    "Jungle": {"speed": 40000, "guardian": "Tiger"},
-    "Snow": {"speed": 170000, "guardian": "Yeti"},
-    "Volcano": {"speed": 700000, "guardian": "Cerberus"},
-    "Abyss Ocean": {"speed": 2500000, "guardian": "Moby"},
-    "Prehistoric": {"speed": 18000000, "guardian": "T-Rex"},
-    "Cosmic": {"speed": 700000000, "guardian": "Cosmic Skeleton"},
-    "Cherry Blossom": {"speed": 2500000000, "guardian": "Oni Tiger"},
-    "Titan Temple": {"speed": 7000000000, "guardian": "Gorilla King"},
-    "Angels & Demons": {"speed": 20000000000, "guardian": "ArchAngel / World Burner"},
+    "Forest": {"speed_need": 0, "eggs": ["Chicken Egg", "Dog Egg"], "reward": (1, 5)},
+    "Lake": {"speed_need": 900, "eggs": ["Frog Egg", "Duck Egg"], "reward": (5, 15)},
+    "Desert": {"speed_need": 10000, "eggs": ["Jerboa Egg", "Scorpion Egg"], "reward": (20, 50)},
+    "Prehistoric": {"speed_need": 18000000, "eggs": ["T-Rex Egg"], "reward": (80000, 120000)},
 }
 
-pets = [
-    {"name": "Chicken", "biome": "Forest", "rarity": "Common", "income": 1},
-    {"name": "Frog", "biome": "Lake", "rarity": "Common", "income": 3},
-    {"name": "Jerboa", "biome": "Desert", "rarity": "Common", "income": 8},
-    {"name": "T-Rex", "biome": "Prehistoric", "rarity": "Legendary", "income": 89121},
-    {"name": "Unicorn", "biome": "Cosmic", "rarity": "Divine", "income": 1000000000},
-    {"name": "Kitsune", "biome": "Cherry Blossom", "rarity": "Divine", "income": 1800000000},
-    {"name": "Nightflame", "biome": "Titan Temple", "rarity": "Divine", "income": 3000000000},
-    {"name": "Spirit World Guardian", "biome": "Angels & Demons", "rarity": "Eternal", "income": 26000000000},
-]
+# ====================== GIAO DIỆN ======================
+st.title("🥚 Steal An Egg")
+st.caption("Phiên bản mini bằng Streamlit")
 
-# ====================== SIDEBAR ======================
-st.sidebar.header("⚙️ Cài đặt")
-player_speed = st.sidebar.number_input("Speed hiện tại của bạn", min_value=0, value=10000, step=1000)
+col1, col2, col3 = st.columns(3)
+col1.metric("⚡ Speed", f"{st.session_state.speed:,}")
+col2.metric("💰 Money", f"${st.session_state.money:,}")
+col3.metric("🐣 Số Pet", len(st.session_state.pets))
 
-# ====================== TAB ======================
-tab1, tab2, tab3, tab4 = st.tabs(["🗺️ Biomes", "🐣 Pets", "🧮 Máy tính thu nhập", "🎨 Tạo Prompt Ảnh"])
+st.markdown(f"**Vị trí hiện tại:** `{st.session_state.location}`")
+st.info(st.session_state.message)
 
-# ---------- TAB 1: BIOMES ----------
+st.divider()
+
+# ====================== CHỨC NĂNG ======================
+tab1, tab2, tab3 = st.tabs(["🏃 Hành động", "🗺️ Biomes", "🐣 Pets của bạn"])
+
 with tab1:
-    st.subheader("Danh sách Biomes & Speed yêu cầu")
+    st.subheader("Hành động")
 
-    biome_data = []
-    for name, info in biomes.items():
-        can_enter = "✅ Có thể vào" if player_speed >= info["speed"] else "❌ Chưa đủ Speed"
-        biome_data.append({
-            "Biome": name,
-            "Speed cần": f"{info['speed']:,}",
-            "Guardian": info["guardian"],
-            "Trạng thái": can_enter
-        })
+    # Tập luyện
+    if st.button("🏋️ Tập Treadmill (+Speed)", use_container_width=True):
+        gain = random.randint(200, 800)
+        st.session_state.speed += gain
+        st.session_state.message = f"Bạn tập treadmill và được +{gain} Speed!"
+        st.rerun()
 
-    df_biome = pd.DataFrame(biome_data)
-    st.dataframe(df_biome, use_container_width=True, hide_index=True)
+    # Quay về base
+    if st.session_state.location != "Base":
+        if st.button("🏠 Chạy về Base", use_container_width=True):
+            if st.session_state.carrying:
+                # Thành công mang trứng về
+                egg_name = st.session_state.egg
+                income = random.randint(*biomes[st.session_state.location]["reward"])
+                st.session_state.pets.append({"name": egg_name, "income": income})
+                st.session_state.money += income * 10
+                st.session_state.message = f"Bạn đã mang {egg_name} về thành công! +${income*10}"
+                st.session_state.egg = None
+                st.session_state.carrying = False
+            else:
+                st.session_state.message = "Bạn đã về Base an toàn."
+            st.session_state.location = "Base"
+            st.rerun()
 
-# ---------- TAB 2: PETS ----------
 with tab2:
-    st.subheader("Một số Pets nổi bật")
+    st.subheader("Chọn Biome để cướp trứng")
 
-    df_pets = pd.DataFrame(pets)
-    df_pets["Income/s"] = df_pets["income"].apply(lambda x: f"${x:,}")
-    st.dataframe(df_pets[["name", "biome", "rarity", "Income/s"]], use_container_width=True, hide_index=True)
-
-# ---------- TAB 3: CALCULATOR ----------
-with tab3:
-    st.subheader("Máy tính thu nhập từ Pets")
-
-    selected_pets = st.multiselect(
-        "Chọn pets bạn đang sở hữu",
-        options=[p["name"] for p in pets],
-        default=["T-Rex"]
-    )
-
-    total_income = 0
-    for pet in pets:
-        if pet["name"] in selected_pets:
-            total_income += pet["income"]
-
-    st.metric("Tổng thu nhập mỗi giây", f"${total_income:,}")
-    st.metric("Thu nhập mỗi giờ", f"${total_income * 3600:,}")
-    st.metric("Thu nhập mỗi ngày", f"${total_income * 86400:,}")
-
-# ---------- TAB 4: PROMPT GENERATOR ----------
-with tab4:
-    st.subheader("Tạo Prompt ảnh Steal An Egg")
-
-    egg_name = st.text_input("Tên trứng / Pet", value="TREX EGG")
-    income_text = st.text_input("Giá trị thu nhập", value="$89,121Sp/s")
-    character_desc = st.text_input("Mô tả nhân vật", value="Roblox avatar with orange hair, blue hoodie")
-    background = st.selectbox("Background", ["Desert", "Forest", "Volcano", "Cosmic", "Snow"])
-
-    if st.button("Tạo Prompt", type="primary"):
-        prompt = f"""A vibrant Roblox-style 3D cartoon scene from the game "Steal An Egg", bright {background.lower()} biome background. On the left, a large blocky dinosaur looking surprised with red exclamation marks. On the right, a {character_desc}, dramatically lifting a giant shiny egg covered in golden hexagonal scales above their head. Bold colorful text above says "{egg_name}" in rainbow gradient letters, with a red arrow pointing to the egg, and glowing green text "{income_text}". Bright lighting, high contrast, clean Roblox aesthetic, exaggerated proportions, fun and energetic composition, thumbnail style."""
+    for name, info in biomes.items():
+        can_go = st.session_state.speed >= info["speed_need"]
+        label = f"{name} (Cần {info['speed_need']:,} Speed)"
         
-        st.code(prompt, language="text")
-        st.success("Đã tạo prompt! Copy và dán vào AI tạo ảnh.")
+        if can_go:
+            if st.button(f"➡️ Đi đến {name}", key=name, use_container_width=True):
+                st.session_state.location = name
+                st.session_state.message = f"Bạn đã đến {name}. Hãy cướp trứng!"
+                st.rerun()
+        else:
+            st.button(f"🔒 {label}", disabled=True, use_container_width=True)
 
-st.markdown("---")
-st.caption("Tool không chính thức • Dữ liệu mang tính tham khảo")
+    # Cướp trứng
+    if st.session_state.location in biomes and not st.session_state.carrying:
+        st.divider()
+        if st.button("🥚 Cướp Trứng!", type="primary", use_container_width=True):
+            egg = random.choice(biomes[st.session_state.location]["eggs"])
+            st.session_state.egg = egg
+            st.session_state.carrying = True
+            st.session_state.message = f"Bạn đã nhặt được **{egg}**! Nhanh chạy về Base trước khi bị đuổi!"
+            st.rerun()
+
+    if st.session_state.carrying:
+        st.warning(f"⚠️ Bạn đang cầm: **{st.session_state.egg}** — Hãy chạy về Base ngay!")
+
+with tab3:
+    st.subheader("Pets đang sở hữu")
+    if not st.session_state.pets:
+        st.write("Bạn chưa có pet nào.")
+    else:
+        total_income = 0
+        for pet in st.session_state.pets:
+            st.write(f"• {pet['name']} → **${pet['income']}/s**")
+            total_income += pet["income"]
+        st.success(f"Tổng thu nhập: **${total_income}/s**")
+
+        if st.button("💵 Thu hoạch tiền từ Pets"):
+            earn = total_income * random.randint(5, 15)
+            st.session_state.money += earn
+            st.session_state.message = f"Bạn thu hoạch được ${earn:,}!"
+            st.rerun()
+
+st.divider()
+if st.button("🔄 Chơi lại từ đầu", type="secondary"):
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
